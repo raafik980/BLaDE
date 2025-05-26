@@ -121,12 +121,17 @@ Potential::Potential() {
   branch3Cons=NULL;
   branch3Cons_d=NULL;
 
+
+  resdCount=0; // resd raafik 05-13-2025
+  resds=NULL; // resd raafik 05-13-2025
+  resds_d=NULL; // resd raafik 05-13-2025
   noeCount=0;
   noes=NULL;
   noes_d=NULL;
   harmCount=0;
   harms=NULL;
   harms_d=NULL;
+
 
   prettifyPlan=NULL;
 }
@@ -209,6 +214,8 @@ Potential::~Potential()
   if (planFFTPME) cufftDestroy(planFFTPME);
   if (planIFFTPME) cufftDestroy(planIFFTPME);
 
+  if (resds) free(resds); // resd raafik 05-13-2025
+  if (resds_d) cudaFree(resds_d); // resd raafik 05-13-2025
   if (noes) free(noes);
   if (noes_d) cudaFree(noes_d);
   if (harms) free(harms);
@@ -1483,6 +1490,17 @@ void Potential::initialize(System *system)
   }
   cudaMemcpy(virtualSite3_d,virtualSite3,virtualSite3Count*sizeof(struct VirtualSite3),cudaMemcpyHostToDevice);
 
+
+  //////simple single pair RESD restraints///raafik
+  resdCount=system->structure->resdCount;
+  resds=(struct ResdPotential*)calloc(resdCount,sizeof(struct ResdPotential));
+  cudaMalloc(&resds_d,resdCount*sizeof(struct ResdPotential));
+  for (i=0; i<resdCount; i++) {
+    resds[i]=system->structure->resdList[i];
+  }
+  cudaMemcpy(resds_d,resds,resdCount*sizeof(struct ResdPotential),cudaMemcpyHostToDevice);
+
+
   // NOE restraints
   noeCount=system->structure->noeCount;
   noes=(struct NoePotential*)calloc(noeCount,sizeof(struct NoePotential));
@@ -1605,6 +1623,7 @@ void Potential::calc_force(int step,System *system)
     system->msld->getforce_thetaBias(system,calcEnergy);
     system->msld->getforce_atomRestraints(system,calcEnergy);
     system->msld->getforce_chargeRestraints(system,calcEnergy);
+    getforce_resd(system,calcEnergy); // resd raafik 05-19-2025
     getforce_noe(system,calcEnergy);
     getforce_harm(system,calcEnergy);
     cudaEventRecord(r->biaspotComplete,r->biaspotStream);

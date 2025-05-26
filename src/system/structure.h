@@ -9,6 +9,7 @@
 
 // Forward declarations:
 class System;
+struct ResdPotential; // resd raafik 05-13-2025
 struct NoePotential;
 struct HarmonicPotential;
 struct VirtualSite2; // Colinear lone pair
@@ -58,6 +59,10 @@ class Structure {
 
   bool shakeHbond;
 
+
+  int resdCount; // resd raafik 05-13-2025
+  std::vector<struct ResdPotential> resdList; // resd raafik 05-13-2025
+
   int noeCount;
   std::vector<struct NoePotential> noeList;
 
@@ -73,6 +78,7 @@ class Structure {
   void reset(char *line,char *token,System *system);
   void file(char *line,char *token,System *system);
   void parse_shake(char *line,char *token,System *system);
+  void parse_resd(char *line,char *token,System *system); // resd raafik 05-13-2025
   void parse_noe(char *line,char *token,System *system);
   void parse_harmonic(char *line,char *token,System *system);
   void dump(char *line,char *token,System *system);
@@ -96,6 +102,7 @@ extern "C" {
   void blade_add_virt2(System *system,int v,int h1,int h2,double dist,double scale);
   void blade_add_virt3(System *system,int v,int h1,int h2,int h3,double dist,double theta,double phi);
   void blade_add_shake(System *system,int shakeHbond);
+  void blade_add_resd(System *system, int i1, int i2, int j1, int j2, double ci, double cj, double rdist, double kdist); // resd raafik 05-13-2025
   void blade_add_noe(System *system,int i,int j,double rmin,double kmin,double rmax,double kmax,double rpeak,double rswitch,double nswitch);
   void blade_add_harmonic(System *system,int i,double k,double x0,double y0,double z0,double n);
 }

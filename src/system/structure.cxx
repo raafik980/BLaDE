@@ -27,6 +27,8 @@ Structure::Structure() {
 
   shakeHbond=false;
 
+  resdCount=0; // resd raafik 05-13-2025
+  resdList.clear(); // resd raafik 05-13-2025
   noeCount=0;
   noeList.clear();
   harmCount=0;
@@ -51,6 +53,8 @@ void Structure::setup_parse_structure()
   helpStructure["file"]="?structure file psf [filename]> This loads the system structure from the CHARMM PSF (protein structure file)\n";
   parseStructure["shake"]=&Structure::parse_shake;
   helpStructure["shake"]="?structure shake [hbond/none]> Turn hydrogen bond length constraints on or off.\n";
+  parseStructure["resd"]=&Structure::parse_resd;
+  helpStructure["resd"]="?structure resd [selection_dist1_atom1] [selection_dist1_atom2] [selection_dist2_atom1] [selection_dist2_atom2] [dist1_coefficient] [dist2_coefficient] [ref_dist_diff] [k_dist_diff]> Apply a CHARMM-style RESD restraint with linear combination of two distances (dist1 and dist2)\n";
   parseStructure["noe"]=&Structure::parse_noe;
   helpStructure["noe"]="?structure noe [selection] [selection] [rmin] [kmin] [rmax] [kmax] [rpeak] [rswitch] [nswitch]> Apply a CHARMM-style NOE restraint between a pair of atoms\n";
   parseStructure["harmonic"]=&Structure::parse_harmonic;
@@ -133,6 +137,84 @@ void Structure::parse_shake(char *line,char *token,System *system)
     fatal(__FILE__,__LINE__,"Unrecognized token %s for structure shake selection. Try hbond or none\n",token);
   }
 }
+
+////parse resd raafik 05-24-2025
+void Structure::parse_resd(char *line,char *token,System *system)
+{
+  io_nexta(line,token);
+  if (strcmp(token,"reset")==0) {
+    resdList.clear();
+  } else {
+    std::string i1selection=token;
+    std::string i2selection=io_nexts(line);
+    std::string j1selection=io_nexts(line);
+    std::string j2selection=io_nexts(line);
+
+
+    int is,ns,i1,i2,j1,j2;
+    // 1 //distance1 atom1
+    if (system->selections->selectionMap.count(i1selection)!=1) {
+      fatal(__FILE__,__LINE__,"Unrecognized atom1_for_distance1 selection name %s for resd restraints\n",token);
+    }
+    ns=0;
+    for (is=0; is<system->selections->selectionMap[i1selection].boolCount; is++) {
+      if (system->selections->selectionMap[i1selection].boolSelection[is]) {
+        i1=is;
+        ns++;
+      }
+    }
+    if (ns!=1) fatal(__FILE__,__LINE__,"Expected 1 atom in atom1_for_distance1 selection, found %d\n",ns);
+    // 2
+    if (system->selections->selectionMap.count(i2selection)!=1) {
+      fatal(__FILE__,__LINE__,"Unrecognized atom2_for_distance1 selection name %s for resd restraints\n",token);
+    }
+    ns=0;
+    for (is=0; is<system->selections->selectionMap[i2selection].boolCount; is++) {
+      if (system->selections->selectionMap[i2selection].boolSelection[is]) {
+        i2=is;
+        ns++;
+      }
+    }
+    if (ns!=1) fatal(__FILE__,__LINE__,"Expected 1 atom in atom2_for_distance1 selection, found %d\n",ns);
+    // 3
+        if (system->selections->selectionMap.count(j1selection)!=1) {
+      fatal(__FILE__,__LINE__,"Unrecognized atom1_for_distance2 selection name %s for resd restraints\n",token);
+    }
+    ns=0;
+    for (is=0; is<system->selections->selectionMap[j1selection].boolCount; is++) {
+      if (system->selections->selectionMap[j1selection].boolSelection[is]) {
+        j1=is;
+        ns++;
+      }
+    }
+    if (ns!=1) fatal(__FILE__,__LINE__,"Expected 1 atom in atom1_for_distance2 selection, found %d\n",ns);
+    // 4
+        if (system->selections->selectionMap.count(j2selection)!=1) {
+      fatal(__FILE__,__LINE__,"Unrecognized atom2_for_distance2 selection name %s for resd restraints\n",token);
+    }
+    ns=0;
+    for (is=0; is<system->selections->selectionMap[j2selection].boolCount; is++) {
+      if (system->selections->selectionMap[j2selection].boolSelection[is]) {
+        j2=is;
+        ns++;
+      }
+    }
+    if (ns!=1) fatal(__FILE__,__LINE__,"Expected 1 atom in atom2_for_distance2 selection, found %d\n",ns);
+    //
+    struct ResdPotential resd;
+    resd.i1=i1;
+    resd.i2=i2;
+    resd.j1=j1;
+    resd.j2=j2;
+    resd.ci=io_nextf(line);
+    resd.cj=io_nextf(line);
+    resd.rdist=io_nextf(line)*ANGSTROM;
+    resd.kdist=io_nextf(line)*KCAL_MOL/(ANGSTROM*ANGSTROM);
+    resdList.push_back(resd);
+  }
+  resdCount=resdList.size();
+}
+
 
 void Structure::parse_noe(char *line,char *token,System *system)
 {
@@ -616,6 +698,23 @@ void blade_add_shake(System *system,int shakeHbond)
   system+=omp_get_thread_num();
   system->structure->shakeHbond=shakeHbond;
 }
+
+////////////raafik///simple///resd
+void blade_add_resd(System *system, int i1, int i2, int j1, int j2, double ci, double cj, double rdist, double kdist)
+{
+  system+=omp_get_thread_num();
+  struct ResdPotential resd;
+  resd.i1=i1-1;
+  resd.i2=i2-1;
+  resd.j1=j1-1;
+  resd.j2=j2-1;
+  resd.ci=ci;
+  resd.cj=cj;
+  resd.rdist=rdist*ANGSTROM;
+  resd.kdist=kdist*KCAL_MOL/(ANGSTROM*ANGSTROM);
+  system->structure->resdList.push_back(resd);
+  system->structure->resdCount=system->structure->resdList.size();
+} 
 
 void blade_add_noe(System *system,int i,int j,double rmin,double kmin,double rmax,double kmax,double rpeak,double rswitch,double nswitch)
 {

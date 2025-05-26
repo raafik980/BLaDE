@@ -146,6 +146,18 @@ struct VirtualSite3 { // Bisector is dist is negative
   real phi;
 };
 
+////raafik///simlple///resd
+struct ResdPotential {
+  int i1;
+  int i2;
+  int j1;
+  int j2;
+  real ci;
+  real cj;
+  real rdist;
+  real kdist;
+};
+
 struct NoePotential {
   int i;
   int j;
@@ -294,6 +306,9 @@ class Potential {
   struct VirtualSite3 *virtualSite3_d;
 
   // And restraints
+  int resdCount; // resd raafik 05-13-2025
+  struct ResdPotential *resds; // resd raafik 05-13-2025
+  struct ResdPotential *resds_d; // resd raafik 05-13-2025  
   int noeCount;
   struct NoePotential *noes;
   struct NoePotential *noes_d;
