@@ -30,8 +30,8 @@ __global__ void getforce_resd_kernel(int resdCount,struct ResdPotential *resds,r
     xi2=position[resdp.i2];
     xj1=position[resdp.j1];
     xj2=position[resdp.j2];
-    dr1=real3_subpbc<flagBox>(xi1,xj1,box);
-    dr2=real3_subpbc<flagBox>(xi2,xj2,box);
+    dr1=real3_subpbc<flagBox>(xi1,xi2,box);
+    dr2=real3_subpbc<flagBox>(xj1,xj2,box);
     r1=real3_mag<real>(dr1);
     r2=real3_mag<real>(dr2);
     delref=resdp.ci*r1+resdp.cj*r2-resdp.rdist;
@@ -61,11 +61,11 @@ void getforce_resdT(System *system,box_type box,bool calcEnergy)
   int N;
   int shMem=0;
   real_e *pEnergy=NULL;
-  if (r->calcTermFlag[eebias]==false) return; //eeresd
+  if (r->calcTermFlag[eeresd]==false) return; //eeresd
 
   if (calcEnergy) {
     shMem=BLBO*sizeof(real)/32;
-    pEnergy=s->energy_d+eebias; // eeresd
+    pEnergy=s->energy_d+eeresd; // eeresd
   }
   N=p->resdCount;
   if (N>0) getforce_resd_kernel<flagBox><<<(N+BLBO-1)/BLBO,BLBO,shMem,r->biaspotStream>>>(N,p->resds_d,(real3*)s->position_fd,(real3_f*)s->force_d,box,pEnergy);
