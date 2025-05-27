@@ -61,11 +61,11 @@ void getforce_resdT(System *system,box_type box,bool calcEnergy)
   int N;
   int shMem=0;
   real_e *pEnergy=NULL;
-  if (r->calcTermFlag[eeresd]==false) return; //eeresd
+  if (r->calcTermFlag[eebias]==false) return; //eeresd
 
   if (calcEnergy) {
     shMem=BLBO*sizeof(real)/32;
-    pEnergy=s->energy_d+eeresd; // eeresd
+    pEnergy=s->energy_d+eebias; // eeresd
   }
   N=p->resdCount;
   if (N>0) getforce_resd_kernel<flagBox><<<(N+BLBO-1)/BLBO,BLBO,shMem,r->biaspotStream>>>(N,p->resds_d,(real3*)s->position_fd,(real3_f*)s->force_d,box,pEnergy);
